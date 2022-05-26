@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 [ "${DEBUG}" == "yes" ] && set -x
 
 function add_config_value() {
@@ -14,8 +15,8 @@ function add_config_value() {
 }
 
 # Read password and username from file to avoid unsecure env variables
-if [ -n "${SMTP_PASSWORD_FILE}" ]; then [ -e "${SMTP_PASSWORD_FILE}" ] && SMTP_PASSWORD=$(cat "${SMTP_PASSWORD_FILE}") || echo "SMTP_PASSWORD_FILE defined, but file not existing, skipping."; fi
-if [ -n "${SMTP_USERNAME_FILE}" ]; then [ -e "${SMTP_USERNAME_FILE}" ] && SMTP_USERNAME=$(cat "${SMTP_USERNAME_FILE}") || echo "SMTP_USERNAME_FILE defined, but file not existing, skipping."; fi
+if [ -n "$SMTP_PASSWORD_FILE" ]; then [ -e "$SMTP_PASSWORD_FILE" ] && SMTP_PASSWORD=$(cat "$SMTP_PASSWORD_FILE") || echo "SMTP_PASSWORD_FILE defined, but file not existing, skipping."; fi
+if [ -n "$SMTP_USERNAME_FILE" ]; then [ -e "$SMTP_USERNAME_FILE" ] && SMTP_USERNAME=$(cat "$SMTP_USERNAME_FILE") || echo "SMTP_USERNAME_FILE defined, but file not existing, skipping."; fi
 
 [ -z "${SMTP_SERVER}" ] && echo "SMTP_SERVER is not set" && exit 1
 [ -z "${SERVER_HOSTNAME}" ] && echo "SERVER_HOSTNAME is not set" && exit 1
@@ -28,12 +29,24 @@ DOMAIN=`echo ${SERVER_HOSTNAME} | awk 'BEGIN{FS=OFS="."}{print $(NF-1),$NF}'`
 
 # Set needed config options
 add_config_value "maillog_file" "/dev/stdout"
-add_config_value "myhostname" ${SERVER_HOSTNAME}
+add_config_value "myhostname" ${MYHOSTNAME}
 add_config_value "mydomain" ${DOMAIN}
-add_config_value "mydestination" "${DESTINATION:-localhost}"
-add_config_value "myorigin" '$mydomain'
-add_config_value "relayhost" "[${SMTP_SERVER}]:${SMTP_PORT}"
+#add_config_value "mydestination" "${DESTINATION:-localhost},localhost"
+add_config_value "mydestination"  "${MYDESTINATION},localhost"
+#add_config_value "myorigin" '$mydomain'
+add_config_value "myorigin"  ${MYORIGIN}
+add_config_value "relayhost" ${RELAYHOST}
 add_config_value "smtp_use_tls" "yes"
+add_config_value "smtpd_tls_session_cache_database" ${SMTPD_TLS_SESSION_CACHE_DATABASE}
+add_config_value "smtp_tls_session_cache_database" ${SMTP_TLS_CACHE_DATABASE}
+
+
+#Added by MU
+#add_config_value "inet_interfaces" "loopback-only"
+#add_config_value "disable_dns_lookups"  "yes"
+add_config_value "server_hostname" ${SERVER_HOSTNAME}
+
+
 if [ ! -z "${SMTP_USERNAME}" ]; then
   add_config_value "smtp_sasl_auth_enable" "yes"
   add_config_value "smtp_sasl_password_maps" "lmdb:/etc/postfix/sasl_passwd"
@@ -74,7 +87,8 @@ if [ "${LOG_SUBJECT}" == "yes" ]; then
 fi
 
 #Check for subnet restrictions
-nets='10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16'
+#nets='172.0.0.0/8, 192.168.0.0/16'
+nets=${MYNETWORKS}
 if [ ! -z "${SMTP_NETWORKS}" ]; then
         for i in $(sed 's/,/\ /g' <<<$SMTP_NETWORKS); do
                 if grep -Eq "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/[0-9]{1,2}" <<<$i ; then
